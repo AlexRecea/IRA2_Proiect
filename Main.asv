@@ -1,0 +1,22 @@
+%coloana 1: timp
+%coloana 2: Azimuth
+%coloana 3: Azimuth21
+%coloana 4: Pitch
+%coloana 5: Pitch12
+%intrareAzimuth: 0.2
+%intrarePitch: 0.3
+
+
+time = tout(:,1);
+azimuth = tout (:,2);
+azimuth21 = tout (:, 3);
+pitch = tout (:,4);
+pitch12 = tout (:,5);
+input = ones (1501);
+u1 = input * 0.2;
+u2 = input * 0
+plot(time, u1)
+% plot(time, pitch)
+Te = time(2) - time(1);
+
+% data_azimuth_id = iddata ()
