@@ -34,9 +34,9 @@ armax_model_azimuth = armax(data_azimuth_id, [nA, nB, nC, nD]);
 H_Azimuth_11 = tf (armax_model_azimuth.B, armax_model_azimuth.A, Te)
 armax_model_pitch = armax(data_pitch_id, [nA, nB, nC, nD]);
 H_Pitch_22 = tf (armax_model_pitch.B, armax_model_pitch.A, Te)
-armax_model_azimuth21 = armax(data_azimuth21_id, [1 1 1 1]);
+armax_model_azimuth21 = armax(data_azimuth21_id, [2 1 1 1]);
 H_Azimuth_21 = tf (armax_model_azimuth21.B, armax_model_azimuth21.A, Te)
-armax_model_pitch12 = armax(data_pitch12_id, [1 1 1 1]);
+armax_model_pitch12 = armax(data_pitch12_id, [2 1 1 1]);
 H_Pitch_12 = tf (armax_model_pitch12.B, armax_model_pitch12.A, Te)
 
 figure
@@ -52,5 +52,26 @@ title ("Step Response for Pitch Input")
 subplot(224)
 step(H_Pitch_22)
 title ("Step Response for Pitch Input")
-% figure, compare(armax_model_azimuth, data_azimuth_id)
+
+%dupa raspunsurile la treapta ne-am dat seama cum ar trebui sa arate 
+%controlerele pentru fiecare dintre cele 2 intrari
+
+H_Controller_Azimuth = 14.7;
+H_Controller_Pitch = 1.08;
+H11_with_PController = H_Azimuth_11 / H_Controller_Azimuth;
+H22_with_PController = H_Pitch_22 / H_Controller_Pitch;
+figure
+subplot (221)
+step(H11_with_Controller)
+title ("Step Response for Azimuth Input")
+subplot (222)
+step(H_Pitch_12)
+title ("Step Response for Azimuth Input")
+subplot (223)
+step(H_Azimuth_21)
+title ("Step Response for Pitch Input")
+subplot(224)
+step(H22_with_PController)
+title ("Step Response for Pitch Input")
+% figure, compare(armax_model_azimuth21, data_azimuth21_id)
 
