@@ -15,9 +15,6 @@ pitch12 = tout (:, 5);
 azimuth_input = tout (:, 6);
 pitch_input = tout (:, 7);
 
-
-% plot(time, u1)
-% plot(time, pitch)
 Te = time(2) - time(1);
 
 data_azimuth_id = iddata(azimuth, azimuth_input, Te);
@@ -25,21 +22,21 @@ data_pitch_id = iddata(pitch, pitch_input, Te);
 data_azimuth21_id = iddata(azimuth21, azimuth_input, Te);
 data_pitch12_id = iddata(pitch12, pitch_input, Te);
 
-nA = 2;
-nB = 2;
-nC = 1;
-nD = 2;
+nA = 2; nB = 2; nC = 1; nD = 2;
 
 armax_model_azimuth = armax(data_azimuth_id, [nA, nB, nC, nD]);
-H_Azimuth_11 = tf (armax_model_azimuth.B, armax_model_azimuth.A, Te)
-armax_model_pitch = armax(data_pitch_id, [nA, nB, nC, nD]);
-H_Pitch_22 = tf (armax_model_pitch.B, armax_model_pitch.A, Te)
-armax_model_azimuth21 = armax(data_azimuth21_id, [2 1 1 1]);
-H_Azimuth_21 = tf (armax_model_azimuth21.B, armax_model_azimuth21.A, Te)
-armax_model_pitch12 = armax(data_pitch12_id, [2 1 1 1]);
-H_Pitch_12 = tf (armax_model_pitch12.B, armax_model_pitch12.A, Te)
+H_Azimuth_11 = tf (armax_model_azimuth.B, armax_model_azimuth.A, Te);
 
-figure
+armax_model_pitch = armax(data_pitch_id, [nA, nB, nC, nD]);
+H_Pitch_22 = tf (armax_model_pitch.B, armax_model_pitch.A, Te);
+
+armax_model_azimuth21 = armax(data_azimuth21_id, [2 1 1 1]);
+H_Azimuth_21 = tf (armax_model_azimuth21.B, armax_model_azimuth21.A, Te);
+
+armax_model_pitch12 = armax(data_pitch12_id, [2 1 1 1]);
+H_Pitch_12 = tf (armax_model_pitch12.B, armax_model_pitch12.A, Te);
+
+figure('Name', 'Step pentru H identificat')
 subplot (221)
 step(H_Azimuth_11)
 title ("Step Response for Azimuth Input")
@@ -53,7 +50,119 @@ subplot(224)
 step(H_Pitch_22)
 title ("Step Response for Pitch Input")
 
-%dupa raspunsurile la treapta ne-am dat seama 
+%dupa raspunsurile la treapta ne-am dat seama cum ar trebui sa arate 
+%controlerele pentru fiecare dintre cele 2 intrari
 
+H_Controller_Azimuth = 14.7; %feedforward gain pentru Azimuth
+H_Controller_Pitch = 1.08; %feedforward gain pentru Pitch
+%H11_with_PController = H_Azimuth_11 / H_Controller_Azimuth;
+%H22_with_PController = H_Pitch_22 / H_Controller_Pitch;
+
+% figure ('Name', 'Step pentru H cu ff gain')
+% subplot (221)
+% step(H11_with_PController)
+% title ("Step Response for Azimuth Input")
+% subplot (222)
+% step(H_Pitch_12)
+% title ("Step Response for Azimuth Input")
+% subplot (223)
+% step(H_Azimuth_21)
+% title ("Step Response for Pitch Input")
+% subplot(224)
+% step(H22_with_PController)
+% title ("Step Response for Pitch Input")
 % figure, compare(armax_model_azimuth21, data_azimuth21_id)
+
+H_cc_Azimuth_11 = d2c (H_Azimuth_11, 'zoh');
+H_cc_Azimuth_21 = d2c (H_Azimuth_21, 'zoh');
+H_cc_Pitch_22 = d2c (H_Pitch_22, 'zoh');
+H_cc_Pitch_12 = d2c (H_Pitch_12, 'zoh');
+
+G = [H_cc_Azimuth_11, H_cc_Pitch_12; H_cc_Azimuth_21, H_cc_Pitch_22];
+
+%Decoupler = [1/H_cc_Azimuth_11, 0; 0, 1/H_cc_Pitch_22] %cand faci decuplarea trebuie sa fie un sistem implementabil
+%minreal (zpk (Decoupler))
+
+G0 = evalfr(G, 0); %calculul pt s=0 -
+G0_inv = inv(G0);
+K_static = G0_inv
+G_Decoupled_static = K_static * G;
+G_Decoupled_static_min = minreal(zpk(G_Decoupled_static))
+
+%G_Decoupled = Decoupler * G;
+%minreal (zpk (G_Decoupled))
+
+input_data = [azimuth_input, pitch_input];
+figure;
+lsim(G, input_data, time);
+title('Răspunsul la treaptă al sistemului original');
+xlabel('Time (s)');
+ylabel('Output');
+
+
+% Răspunsul sistemului decuplat
+figure;
+lsim(G_Decoupled_static_min, input_data, time);
+title('Răspunsul la treaptă al sistemului decuplat');
+xlabel('Time (s)');
+ylabel('Output');
+
+
+Hf_azimuth = G_Decoupled_static_min(1,1);
+[num_Hf_azimuth, den_Hf_azimuth] = tfdata (Hf_azimuth, 'v');
+Hf_pitch = G_Decoupled_static_min(2,2);
+[num_Hf_pitch, den_Hf_pitch] = tfdata (Hf_pitch, 'v');
+
+% Pasul 1: Obținerea răspunsului la treaptă pentru azimuth și pitch
+figure;
+step(Hf_azimuth);
+title('Răspunsul la treaptă al sistemului Azimuth');
+%overshoot 39.4%, ts = 53.8
+
+overshoot_impus_azimuth = 30;
+ts_impus_azimuth = 40;
+zeta_azimuth = -log(overshoot_impus_azimuth/100) / sqrt(pi^2 + (log(overshoot_impus_azimuth/100))^2);
+wn_azimuth = 4 / (ts_impus_azimuth * zeta_azimuth);
+
+H0_azimuth = tf (wn_azimuth^2, [1 2 * zeta_azimuth * wn_azimuth wn_azimuth^2]);
+HR_azimuth = 1/Hf_azimuth * H0_azimuth/(1- H0_azimuth);
+HR_azimuth_min = minreal (zpk (HR_azimuth)); %spre bucuria noastra, avem gradul 4 pe gradul 5 :D
+[num_HR_azimuth, den_HR_azimuth] = tfdata (HR_azimuth_min, 'v');
+
+figure;
+step(Hf_pitch);
+title('Răspunsul la treaptă al sistemului Pitch');
+%overshoot = 60.7%, ts = 23.3
+overshoot_impus_pitch = 50;
+ts_impus_pitch = 17;
+zeta_pitch = -log(overshoot_impus_pitch/100) / sqrt(pi^2 + (log(overshoot_impus_pitch/100))^2);
+wn_pitch = 4 / (ts_impus_pitch * zeta_pitch);
+
+H0_pitch = tf (wn_pitch^2, [1 2 * zeta_pitch * wn_pitch wn_pitch^2]);
+HR_pitch = 1/Hf_pitch * H0_pitch/(1-H0_pitch);
+HR_pitch_min = minreal (zpk (HR_pitch)); %ne bucuram din nou pentru ca avem grad 4 pe grad 5 :P
+
+
+HR_total = [HR_azimuth, 0;
+            0, HR_pitch];
+
+%sys_closed_loop = feedback (HR_total * G_Decoupled_static_min, eye(2));     
+%eye(2) iti face o matrice de 2x2 cu diag pr 1, asta se foloseste pt MIMO
+
+% figure;
+% lsim(sys_closed_loop, [azimuth_input, pitch_input], time);
+% title('Răspunsul la treaptă al sistemului MIMO reglat');
+% xlabel('Time (s)');
+% ylabel('Output');
+
+HR_total_discret = c2d (HR_total, Te, 'zoh');
+G_decoupled_discret = c2d (G_Decoupled_static_min, Te, 'zoh');
+
+figure
+sys_closed_loop = feedback (HR_total_discret * G_decoupled_discret, eye(2))
+lsim (sys_closed_loop, [azimuth_input, pitch_input], time)
+
+
+
+
 
